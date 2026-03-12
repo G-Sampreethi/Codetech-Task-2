@@ -1,0 +1,72 @@
+# Task 2 - Sentiment Analysis with NLP
+
+import pandas as pd
+import numpy as np
+import matplotlib.pyplot as plt
+import seaborn as sns
+import re
+import nltk
+
+from sklearn.model_selection import train_test_split
+from sklearn.feature_extraction.text import TfidfVectorizer
+from sklearn.linear_model import LogisticRegression
+from sklearn.metrics import accuracy_score, classification_report, confusion_matrix
+
+from nltk.corpus import stopwords
+from nltk.stem import PorterStemmer
+
+nltk.download('stopwords')
+
+# Load Dataset
+df = pd.read_csv("IMDB Dataset.csv")
+
+print("Dataset Shape:", df.shape)
+print(df.head())
+
+# Convert sentiment to binary
+df['sentiment'] = df['sentiment'].map({'positive': 1, 'negative': 0})
+
+# Text Cleaning
+ps = PorterStemmer()
+stop_words = set(stopwords.words('english'))
+
+def preprocess(text):
+    text = re.sub('[^a-zA-Z]', ' ', text)
+    text = text.lower()
+    words = text.split()
+    words = [ps.stem(word) for word in words if word not in stop_words]
+    return " ".join(words)
+
+df['cleaned_review'] = df['review'].apply(preprocess)
+
+# Train-Test Split
+X_train, X_test, y_train, y_test = train_test_split(
+    df['cleaned_review'], df['sentiment'],
+    test_size=0.2, random_state=42
+)
+
+# TF-IDF Vectorization
+vectorizer = TfidfVectorizer(max_features=5000)
+X_train_tfidf = vectorizer.fit_transform(X_train)
+X_test_tfidf = vectorizer.transform(X_test)
+
+# Logistic Regression Model
+model = LogisticRegression()
+model.fit(X_train_tfidf, y_train)
+
+# Prediction
+y_pred = model.predict(X_test_tfidf)
+
+# Evaluation
+print("Accuracy:", accuracy_score(y_test, y_pred))
+print("\nClassification Report:\n", classification_report(y_test, y_pred))
+
+# Confusion Matrix
+cm = confusion_matrix(y_test, y_pred)
+
+plt.figure(figsize=(6,4))
+sns.heatmap(cm, annot=True, fmt='d', cmap='Blues')
+plt.xlabel("Predicted")
+plt.ylabel("Actual")
+plt.title("Confusion Matrix")
+plt.show()
